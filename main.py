@@ -30,6 +30,7 @@ def create_subscription_custom(user_id, report_id) -> dict:
     return_dict = {}
 
     print("== POST /subscription with (user_id, report_id)")
+    print(util.resources['subscription'] + str(user_id) + '/' + str(report_id))
     res = requests.post(util.resources['subscription'] + str(user_id) + '/' + str(report_id))
 
     return_dict['subscription_id'] = res.json()['Created subscription']
@@ -198,6 +199,30 @@ async def show_stat(response: Response):
 @app.get("/show_stat/{sync_type}")
 async def show_stat(sync_type: str, response: Response):
     return show_stat_custom(sync_type)
+
+
+@app.put("/update_report")
+async def update_report(data=Body(...), response=Response):
+    return_dict = {}
+
+    # PUT Report
+    print("== PUT /report with report content")
+    res = requests.put(util.resources['report'] + 'content', json=data)
+    return_dict['Updated Report'] = data['report_id']
+    print(" *** Report Updated: report_id=" + str(data['report_id']))
+    print(" ****** Report title '" + res.json()['title'] + "' has updated content: " + str(res.json()['content']))
+    print()
+
+    # GET Subscription
+    print("== GET list of subscribed user FROM /subscription BY report_id")
+    res = requests.get(util.resources['subscription'] + 'report/' + str(data['report_id']))
+    subscriber_ls = [item[0] for item in res.json()[1]]
+    print(" ****** Notify Users for Report Update: " + str(subscriber_ls))
+    # === Notification feature has been demonstrated in Microservice 1: user ===
+    return_dict['Notified Users'] = str(subscriber_ls)
+    print()
+
+    return return_dict
 
 
 if __name__ == "__main__":
