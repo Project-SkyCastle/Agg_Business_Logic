@@ -1,5 +1,5 @@
 {
   "user": "http://ec2-3-144-38-237.us-east-2.compute.amazonaws.com:8012/user/",
   "report": "http://35.221.53.203:8012/reports/",
-  "subscription": "http://54.242.52.198:8012/subscription/"
+  "subscription": "http://54.235.43.83:8012/subscription/"
 }
