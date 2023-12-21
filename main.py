@@ -29,6 +29,7 @@ def get_full_subscription():
 def create_subscription_custom(user_id, report_id) -> dict:
     return_dict = {}
 
+    print("== POST /subscription with (user_id, report_id)")
     res = requests.post(util.resources['subscription'] + str(user_id) + '/' + str(report_id))
 
     return_dict['subscription_id'] = res.json()['Created subscription']
@@ -40,6 +41,8 @@ def create_subscription_custom(user_id, report_id) -> dict:
 
 
 def show_stat_custom(sync_type: str):
+    print("== GET activity stat from all microservices")
+
     result = None
 
     # construct call list
@@ -76,15 +79,44 @@ async def root():
     }
 
 
+@app.get("/get_report_by_user/{user_id}")
+async def get_report_by_user(user_id: int, response: Response):
+    return_dict = {}
+
+    # GET List of report_id FROM /subscription BY user_id
+    print("== GET list of report_id FROM /subscription BY user_id")
+    res = requests.get(util.resources['subscription'] + 'user/' + str(user_id))
+
+    if res.status_code != 200:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return res.json()
+    return_dict['report_id'] = [item[0] for item in res.json()[1]]
+    print(" *** Reports Subscribed: report_id=" + str(return_dict['report_id']))
+
+    # GET List of report titles by List of report_id
+    print("== GET list of report titles FROM /report BY report_id")
+    report_titles = []
+    for report_id in return_dict['report_id']:
+        res = requests.get(util.resources['report'] + str(report_id))
+        report_titles += [res.json()['title']]
+        print(' ****** Report ' + str(report_id) + ' : ' + res.json()['title'])
+    return_dict['Report Titles'] = report_titles
+    return_dict = dict(zip(return_dict['report_id'], return_dict['Report Titles']))
+    print()
+    return return_dict
+
+
 @app.post("/create_subscription")
 async def create_subscription(data=Body(...), response=Response):
     return_dict = {}
+
     return_dict.update(create_subscription_custom(data['user_id'], data['report_id']))
     return return_dict
 
 
 @app.delete("/delete_subscription")
 async def delete_subscription(data=Body(...), response=Response):
+    print("== DELETE /subscription by (user_id, report_id)")
     return_dict = {}
 
     # POST Subscription
@@ -111,6 +143,7 @@ async def create_report(data=Body(...), response=Response):
     return_dict = {}
 
     # POST Report
+    print("== POST /report with report content")
     res = requests.post(util.resources['report'], json=data)
     if res.status_code != 201:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -121,6 +154,7 @@ async def create_report(data=Body(...), response=Response):
     print(" ****** Report title '" + res.json()['title'] + "' by Analyst " + str(res.json()['analyst_id']))
     print()
 
+    # POST Subscription
     return_dict.update(create_subscription_custom(data['analyst_id'], created_report_id))
     print()
 
@@ -132,6 +166,7 @@ async def delete_report(report_id: int, response: Response):
     return_dict = {}
 
     # DELETE Report
+    print("== DELETE /report by report_id")
     res = requests.delete(util.resources['report'] + str(report_id))
 
     if res.status_code != 200:
@@ -142,6 +177,7 @@ async def delete_report(report_id: int, response: Response):
     print()
 
     # POST Subscription
+    print("== DELETE /subscription by report_id")
     res = requests.delete(util.resources['subscription'] + 'report/' + str(return_dict['report_id']))
     return_dict['Subscription Deleted'] = res.json()
     print(" *** Subscription Deleted by report_id: report_id=" + str(return_dict['report_id']))
@@ -150,31 +186,6 @@ async def delete_report(report_id: int, response: Response):
             " ****** Subscription " + str(item['Deleted subscription_id']) + ' is deleted for ' +
             str(item['user_id'])
         )
-    print()
-    return return_dict
-
-
-@app.get("/get_report_by_user/{user_id}")
-async def get_report_by_user(user_id: int, response: Response):
-    return_dict = {}
-
-    # GET List of report_id FROM /subscription BY user_id
-    res = requests.get(util.resources['subscription'] + 'user/' + str(user_id))
-
-    if res.status_code != 200:
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        return res.json()
-    return_dict['report_id'] = [item[0] for item in res.json()[1]]
-    print(" *** Reports Subscribed: report_id=" + str(return_dict['report_id']))
-
-    # GET List of report titles by List of report_id
-    report_titles = []
-    for report_id in return_dict['report_id']:
-        res = requests.get(util.resources['report'] + str(report_id))
-        report_titles += [res.json()['title']]
-        print(' ***** Report ' + str(report_id) + ' : ' + res.json()['title'])
-    return_dict['Report Titles'] = report_titles
-    return_dict = dict(zip(return_dict['report_id'], return_dict['Report Titles']))
     print()
     return return_dict
 
